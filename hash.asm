@@ -18,7 +18,18 @@
 #		
 #		-1 - Fim da execução
 #
-
+# Loop de impressão do header, caso precise de debugging
+#	la $s0, hash_table
+#	li $v0, 1
+#	li $t1, 0
+#	
+#	Loop:
+#		lw $a0, 0($s0)
+#		syscall
+#		addi $s0, $s0, 4
+#		addi $t1, $t1, 1
+#		
+#		bne $t1, 16, Loop
 
 .align 0
 #Menu Strings
@@ -90,23 +101,48 @@ main:
 	
 	InsertLoop:
 
+
+#####Leitura######
+
 		li $v0, 4 #Print_str
-		la $a0, insert_str
+		la $a0, insert_home #a0=insert_home
 		syscall
 		
 		li $v0, 5 #Read_int
-		syscall
-		
+		syscall		
+		beq $v0, -1, HashMenu #v0==-1 ? HashMenu : Insert
+
+#####Leitura#####
+
+####Ajuste do valor Hash#####
+
 		move $t0,$v0 #t0=v0
 		div $v0, $v0, 16 #t0=v0/16
-		mflo $t1	#Segundo o greensheet da arquitetura MIPS, o registrador LO
-							#armazena o resto de uma operação de divisão. 
 		
-		la $t2, hash_table # t2=&hash_table
-		mul $t1, $t1, 4
-		add $t2, $t2, $t1 #&hash_table[t2+=t1]
+		mul $t1, $v0, 16  #t1=v0*16
+		sub $v0, $t0, $t1 #v0=t0-t1
+		move $t1, $v0     #t1=v0
+
+		la $t2, hash_table #t2=&hash_table
+		mul $t1, $t1, 4    #ajuste multiplicando por 4 no endereço
+		add $t2, $t2, $t1	 #&hash_table[t2+=t1]
+		lw $t3, 0($t2)     #t3=hash_table[t2]
+####Ajuste do valor Hash####
+
+
+		bnez $t3, MiddleAlloc # t2!=0 ? MiddleAlloc : FirstAlloc
 		
+		#FirstAlloc	
+			
+			div $t1, $t1, 4			#recover hash value
+			sw $t1, 0($t2)		  #hash_table[t2]=t1
+			
+			
+		j InsertLoop
+		MiddleAlloc:
 		
+		j InsertLoop
 	Exit:
+	
 		li $v0, 10 		# exit
 		syscall
