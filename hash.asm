@@ -40,12 +40,17 @@ remove_str:	.asciiz "\n2 - Remocao"
 search_str:	.asciiz "\n3 - Buscar Elemento"
 viewAll_str:	.asciiz "\n4 - Visualizar Tudo"
 exit_str:	.asciiz "\n-1 - Finalizar a execucao.\n"
-invalidOp_str: 	.asciiz "\nCodigo Invalido\!\! \n\n\n"
+invalidOp_str: 	.asciiz "\nCodigo Invalido!! \n\n\n"
 
 #Insert Strings
 insert_home: .asciiz "\nForneca uma chave (-1 para retornar ao menu)"
 
+#Remove Strings
+remove_home: .asciiz "\nForneca um valor a ser removido (-1 para retornar ao menu)"
 
+#Search Strings
+
+#viewAll Strings
 
 
 .align 2
@@ -87,13 +92,13 @@ main:
 		
 		beq $v0, -1,Exit
 		beq $v0, 1, InsertLoop
-		#beq $v0, 2, RemoveLoop
+		beq $v0, 2, RemoveLoop
 		#beq $v0, 3, SearchLoop
 		#beq $v0, 4, ViewAllLoop
 		
 		
 		li $v0, 4 		# Print_str
-		la $a0, exit_str 	# $a0 = &invalidOp_str
+		la $a0, invalidOp_str 	# $a0 = &invalidOp_str
 		syscall
 		
 		j HashMenu
@@ -115,7 +120,6 @@ main:
 #####Leitura#####
 
 ####Ajuste do valor Hash#####
-
 		move $t0,$v0 #t0=v0
 		div $v0, $v0, 16 #t0=v0/16
 		
@@ -135,14 +139,44 @@ main:
 		#FirstAlloc	
 			
 			div $t1, $t1, 4			#recover hash value
-			sw $t1, 0($t2)		  #hash_table[t2]=t1
+			sw $t0, 0($t2)		  #hash_table[t2]=t0
 			
 			
 		j InsertLoop
+		
 		MiddleAlloc:
 		
 		j InsertLoop
-	Exit:
 	
-		li $v0, 10 		# exit
+	
+	
+	
+	RemoveLoop:
+	
+#####Leitura######
+
+		li $v0, 4 #Print_str
+		la $a0, remove_home #a0=insert_home
 		syscall
+		
+		li $v0, 5 #Read_int
+		syscall		
+		beq $v0, -1, HashMenu #v0==-1 ? HashMenu : Remove
+
+#####Leitura#####
+#####Check if 'value' is at header
+	la $s0, hash_table
+	li $t1, 0
+	
+	Loop:
+		lw $a0, 0($s0)
+		addi $s0, $s0, 4
+		addi $t1, $t1, 1 
+		beq $a0, $v0, Header_Remove #a0==v0? Header_remove : continue
+		bne $t1, 16, Loop
+#		j Memory_Remove
+	Header_Remove:
+		sw $zero, 0($s0)
+	
+	
+
