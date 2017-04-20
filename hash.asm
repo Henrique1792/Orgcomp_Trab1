@@ -37,6 +37,7 @@ insert_sep: .asciiz ", "
 # Remove Strings
 remove_home: .asciiz "\n\n>Type a key to be removed (-1 returns to menu): "
 remove_success: .asciiz ">Key successfully removed: "
+remove_notfound: .asciiz ">Key not found, no nodes removed"
 remove_sep: .asciiz ", "
 
 # Search Strings
@@ -86,7 +87,7 @@ hashMenu:
 		
 	beq $v0, -1, exit
 	beq $v0, 1, insertLoop
-	#beq $v0, 2, removeLoop
+	beq $v0, 2, removeLoop
 	#beq $v0, 3, searchLoop
 	beq $v0, 4, viewAllLoop
 		
@@ -98,7 +99,7 @@ j hashMenu
 
 allocNode:			# AllocNode: receives $a0 = key, $a1 = prev, $a2 = next, returns node at $v0
 	sw $a0, 4($sp)		# Saves $a0 in stack
-	li $a0, 12		# Node size = 16 bytes (4 words * 4 bytes)
+	li $a0, 12		# Node size = 12 bytes (3 words * 4 bytes)
 	li $v0, 9		# SBRK code
 	syscall			# SBRK call
 	
@@ -183,28 +184,78 @@ j insertLoop
 	
 removeLoop:
 	#####Leitura######
-	li $v0, 4 #Print_str
-	la $a0, remove_home #a0=insert_home
+	li $v0, 4 		# Print_str
+	la $a0, remove_home 	# $a0 = remove_home
 	syscall
 		
-	li $v0, 5 #Read_int
-	syscall		
-	beq $v0, -1, hashMenu #v0==-1 ? HashMenu : Remove
+	li $v0, 5 		# Read_int
+	syscall
+	
+	beq $v0, -1, hashMenu 	# $v0 == -1 ? HashMenu : Insert
 	#####Leitura#####
 	
-	#####Check if 'value' is at header
-	la $s0, hash_table
-	li $t1, 0
+	####Ajuste do valor Hash#####
+	move $s0, $v0 		# $s0 = $v0 (valor lido salvo)
+	div $v0, $v0, 16 	# $v0 = $v0 / 16
+		
+	mul $t0, $v0, 16  	# $t0 = $v0 * 16
+	sub $v0, $s0, $t0	# $v0 = $s0 - $t0 (resto da divisão)
+	move $s1, $v0     	# $s1 = $v0 (posição hash salva)
+
+	la $t0, hash_table 	# $t0 = &hash_table
+	mul $t1, $s1, 4    	# ajuste multiplicando posição por 4 no endereço
+	add $t0, $t0, $t1	# &hash_table[$t0 += $t1]
+	lw $t1, 0($t0)     	# $t1 = hash_table[$t0]
+	####Ajuste do valor Hash####
 	
-	removeLoopAux:
-		lw $a0, 0($s0)
-		addi $s0, $s0, 4
-		addi $t1, $t1, 1 
-		beq $a0, $v0, headerRemove #a0==v0? Header_remove : continue
-		bne $t1, 16, removeLoopAux
-#		j Memory_Remove
-	headerRemove:
-		sw $zero, 0($s0)
+	bnez $t1, removeNode 	# $t1 != 0 ? removeNode : notFound
+
+notFound:
+	la $a0, remove_notfound # Node not found
+	li $v0, 4		# Print str
+	syscall
+j removeLoop
+
+removeNode:			# Runs through each node of a index for remotion, starting from head
+	lw $t2, 0($t1)		# Loads "key" into $t2
+	
+	bne $t2, $s0, removeNodeLoop # If $t2 != $s0, value is not on head
+	
+	lw $t2, 8($t1)		# Else, load "next" into $t2
+	sw $t2, 0($t0)		# And store it as the head value for the index
+	
+	li $v0, 4		# Print str
+	la $a0, remove_success	# Remove success message
+	syscall			# Print str
+	
+	li $v0, 1		# Print str
+	lw $a0, 0($t1)		# Key removed
+	syscall			# Print str
+	sw $zero, 0($t1)	# Set Key as NULL
+	
+	li $v0, 4		# Print str
+	la $a0, insert_sep	# Separator
+	syscall			# Print str
+	
+	li $v0, 1		# Print str
+	lw $a0, 4($t1)		# Prev removed
+	syscall			# Print str
+	sw $zero, 4($t1)	# Set Prev as NULL
+	
+	li $v0, 4		# Print str
+	la $a0, insert_sep	# Separator
+	syscall			# Print str
+	
+	li $v0, 1		# Print str
+	lw $a0, 8($t1)		# Next removed
+	syscall			# Print str
+	sw $zero, 8($t1)	# Set Next as NULL
+j removeLoop
+	
+removeNodeLoop:
+	lw $t2, 8($t1)		# Loads "next" into $t2
+	beqz $t2, notFound	# If "next" = 0, node not found
+j removeNodeLoop
 		
 viewAllLoop:			# Show every node for each index in the hash table
 	la $t0, hash_table	# $t0 = &hash_table
@@ -260,10 +311,7 @@ viewAllNode:			# Prints current node
 	
 	beqz $a0, viewAllNextIndex # If "next" = 0, go to the next index
 j viewAllLoopAux
-		
+
 exit:
 	li $v0, 10		# Quit code
 	syscall			# Quit execution
-	
-	
-
