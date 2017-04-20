@@ -29,18 +29,22 @@ viewAll_str:	.asciiz "\n4 - View All"
 exit_str:	.asciiz "\n-1 - Quit\n"
 invalidOp_str: 	.asciiz "\nInvalid Code!! \n\n\n"
 
+# Separators
+comma_sep: .asciiz ", "
+
 # Insert Strings
 insert_home: .asciiz "\n\n>Type a key to be inserted (-1 returns to menu): "
 insert_success: .asciiz ">Key successfully inserted: "
-insert_sep: .asciiz ", "
 
 # Remove Strings
 remove_home: .asciiz "\n\n>Type a key to be removed (-1 returns to menu): "
 remove_success: .asciiz ">Key successfully removed: "
 remove_notfound: .asciiz ">Key not found, no nodes removed"
-remove_sep: .asciiz ", "
 
 # Search Strings
+search_home: .asciiz "\n\n>Type a key to be recovered (-1 returns to menu): "
+search_success: .asciiz ">Key successfully recovered: "
+search_notfound: .asciiz ">Key not found, no nodes recovered"
 
 # ViewAll Strings
 viewAll_index: .asciiz "\n\nTable index: "
@@ -59,6 +63,8 @@ hash_table: .space 64		# Hash table (16 words * 4 bytes)
 .text
 .globl hashMenu
 
+# MAIN MENU #
+# ------------------------------------------------------------------------#
 hashMenu:
 	li $v0, 4 		# Print str
 	la $a0, welcome_str 	# $a0 = &Welcome_str
@@ -88,7 +94,7 @@ hashMenu:
 	beq $v0, -1, exit
 	beq $v0, 1, insertLoop
 	beq $v0, 2, removeLoop
-	#beq $v0, 3, searchLoop
+	beq $v0, 3, searchLoop
 	beq $v0, 4, viewAllLoop
 		
 		
@@ -96,7 +102,10 @@ hashMenu:
 	la $a0, invalidOp_str 	# $a0 = &invalidOp_str
 	syscall	
 j hashMenu
+# ------------------------------------------------------------------------#
 
+# NODE ALLOCATION #
+# ------------------------------------------------------------------------#
 allocNode:			# AllocNode: receives $a0 = key, $a1 = prev, $a2 = next, returns node at $v0
 	sw $a0, 4($sp)		# Saves $a0 in stack
 	li $a0, 12		# Node size = 12 bytes (3 words * 4 bytes)
@@ -110,7 +119,10 @@ allocNode:			# AllocNode: receives $a0 = key, $a1 = prev, $a2 = next, returns no
 	sw $a2, 8($v0)		# Stores "next" in node
 	
 	jr $ra			# Returns execution to original flow
+# ------------------------------------------------------------------------#
 	
+# INSERT FUNCTIONS #
+# ------------------------------------------------------------------------#
 insertLoop:
 	#####Leitura######
 	li $v0, 4 		# Print_str
@@ -161,7 +173,7 @@ firstAlloc:			# HEAD insertion in table
 	syscall			# Print int
 	
 	li $v0, 4		# Print str
-	la $a0, insert_sep	# Separator
+	la $a0, comma_sep	# Separator
 	syscall			# Print str
 	
 	li $v0, 1		# Print int
@@ -169,7 +181,7 @@ firstAlloc:			# HEAD insertion in table
 	syscall			# Print int
 	
 	li $v0, 4		# Print str
-	la $a0, insert_sep	# Separator
+	la $a0, comma_sep	# Separator
 	syscall			# Print str
 	
 	li $v0, 1		# Print int
@@ -181,7 +193,10 @@ j insertLoop
 middleAlloc:
 	
 j insertLoop
-	
+# ------------------------------------------------------------------------#
+
+# REMOVE FUNCTIONS #
+# ------------------------------------------------------------------------#
 removeLoop:
 	#####Leitura######
 	li $v0, 4 		# Print_str
@@ -208,9 +223,9 @@ removeLoop:
 	lw $t1, 0($t0)     	# $t1 = hash_table[$t0]
 	####Ajuste do valor Hash####
 	
-	bnez $t1, removeNode 	# $t1 != 0 ? removeNode : notFound
+	bnez $t1, removeNode 	# $t1 != 0 ? removeNode : removeNotFound
 
-notFound:
+removeNotFound:
 	la $a0, remove_notfound # Node not found
 	li $v0, 4		# Print str
 	syscall
@@ -234,7 +249,7 @@ removeNode:			# Runs through each node of a index for remotion, starting from he
 	sw $zero, 0($t1)	# Set Key as NULL
 	
 	li $v0, 4		# Print str
-	la $a0, insert_sep	# Separator
+	la $a0, comma_sep	# Separator
 	syscall			# Print str
 	
 	li $v0, 1		# Print str
@@ -243,7 +258,7 @@ removeNode:			# Runs through each node of a index for remotion, starting from he
 	sw $zero, 4($t1)	# Set Prev as NULL
 	
 	li $v0, 4		# Print str
-	la $a0, insert_sep	# Separator
+	la $a0, comma_sep	# Separator
 	syscall			# Print str
 	
 	li $v0, 1		# Print str
@@ -254,9 +269,70 @@ j removeLoop
 	
 removeNodeLoop:
 	lw $t2, 8($t1)		# Loads "next" into $t2
-	beqz $t2, notFound	# If "next" = 0, node not found
+	beqz $t2, removeNotFound # If "next" = 0, node not found
 j removeNodeLoop
+# ------------------------------------------------------------------------#
+
+# SEARCH FUNCTIONS
+# ------------------------------------------------------------------------#
+searchLoop:			# Seeks the desired key value in the hash table
+	#####Leitura######
+	li $v0, 4 		# Print_str
+	la $a0, search_home 	# $a0 = insert_home
+	syscall
 		
+	li $v0, 5 		# Read_int
+	syscall
+	
+	beq $v0, -1, hashMenu 	# $v0 == -1 ? HashMenu : Insert
+	#####Leitura#####
+	
+	####Ajuste do valor Hash#####
+	move $s0, $v0 		# $s0 = $v0 (valor lido salvo)
+	div $v0, $v0, 16 	# $v0 = $v0 / 16
+		
+	mul $t0, $v0, 16  	# $t0 = $v0 * 16
+	sub $v0, $s0, $t0	# $v0 = $s0 - $t0 (resto da divisão)
+	move $s1, $v0     	# $s1 = $v0 (posição hash salva)
+
+	la $t0, hash_table 	# $t0 = &hash_table
+	mul $t1, $s1, 4    	# ajuste multiplicando posição por 4 no endereço
+	add $t0, $t0, $t1	# &hash_table[$t0 += $t1]
+	lw $t1, 0($t0)     	# $t1 = hash_table[$t0]
+	####Ajuste do valor Hash####
+	
+	bnez $t1, searchNode	# $t1 != 0 ? searchNode : searchNotFound
+	
+searchNotFound:
+	la $a0, search_notfound # Node not found
+	li $v0, 4		# Print str
+	syscall
+j searchLoop
+
+searchFound:
+	li $v0, 4		# Print str
+	la $a0, search_success	# Node found
+	syscall			# Print str
+	
+	li $v0, 1		# Print int
+	lw $a0, 0($t1)		# Key
+	syscall			# Print str
+j searchLoop
+
+searchNode:
+	lw $t2, 0($t1)		# $t2 = current key
+	
+	beq $t2, $s0, searchFound # If $t2 = $s0, key was found
+	
+	lw $t2, 8($t1)		# $t2 = next
+	beqz $t2, searchNotFound # If $t2 = 0, key was not found (end of nodes)
+	
+	move $t1, $t2		# $t1 = $t2 (go to the next node)
+j searchNode
+# ------------------------------------------------------------------------#
+
+# VIEW ALL FUNCTIONS #
+# ------------------------------------------------------------------------#		
 viewAllLoop:			# Show every node for each index in the hash table
 	la $t0, hash_table	# $t0 = &hash_table
 	li $t1, 0		# $t1 = i = 0
@@ -311,7 +387,11 @@ viewAllNode:			# Prints current node
 	
 	beqz $a0, viewAllNextIndex # If "next" = 0, go to the next index
 j viewAllLoopAux
+# ------------------------------------------------------------------------#
 
+# EXIT ROUTINE #
+# ------------------------------------------------------------------------#
 exit:
 	li $v0, 10		# Quit code
 	syscall			# Quit execution
+# ------------------------------------------------------------------------#
