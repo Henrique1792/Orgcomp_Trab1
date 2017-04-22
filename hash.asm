@@ -268,9 +268,49 @@ removeNode:			# Runs through each node of a index for remotion, starting from he
 j removeLoop
 	
 removeNodeLoop:
-	lw $t2, 8($t1)		# Loads "next" into $t2
+	lw $t2, 8($t1)		# Loads next node key into t2
 	beqz $t2, removeNotFound # If "next" = 0, node not found
+	move $t1, $t2		# $t1 = $t2 (go to the next node)
+	lw $t2, 0($t1)		# Loads key into t2
+	beq $t2, $s0, removeMiddleNode # if t2 = key remove non head node
 j removeNodeLoop
+
+removeMiddleNode:
+	lw $t2, 4($t1) #t2 = t1 prev offset
+	lw $t3, 8($t1) #t3 = t1 next offset
+	move $t4, $t2  #t4 = t1 prev
+	sw $t3, 8($t4) #t4 next offset = t1 next offset
+	move $t4, $t3  #t4 = t1 next
+	sw $t2, 4($t4) #t4 next prev offset = t1 prev offset
+	
+	li $v0, 4		# Print str
+	la $a0, remove_success	# Remove success message
+	syscall			# Print str
+	
+	li $v0, 1		# Print str
+	lw $a0, 0($t1)		# Key removed
+	syscall			# Print str
+	sw $zero, 0($t1)	# Set Key as NULL
+	
+	li $v0, 4		# Print str
+	la $a0, comma_sep	# Separator
+	syscall			# Print str
+	
+	li $v0, 1		# Print str
+	lw $a0, 4($t1)		# Prev removed
+	syscall			# Print str
+	sw $zero, 4($t1)	# Set Prev as NULL
+	
+	li $v0, 4		# Print str
+	la $a0, comma_sep	# Separator
+	syscall			# Print str
+	
+	li $v0, 1		# Print str
+	lw $a0, 8($t1)		# Next removed
+	syscall			# Print str
+	sw $zero, 8($t1)	# Set Next as NULL
+
+j removeLoop
 # ------------------------------------------------------------------------#
 
 # SEARCH FUNCTIONS
