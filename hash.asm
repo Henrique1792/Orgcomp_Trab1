@@ -35,6 +35,7 @@ comma_sep: .asciiz ", "
 # Insert Strings
 insert_home: .asciiz "\n\n>Type a key to be inserted (-1 returns to menu): "
 insert_success: .asciiz ">Key successfully inserted: "
+searchinsert_found: .asciiz "\nKey already exists, nothing was inserted"
 
 # Remove Strings
 remove_home: .asciiz "\n\n>Type a key to be removed (-1 returns to menu): "
@@ -149,7 +150,7 @@ insertLoop:
 	lw $t1, 0($t0)     	# $t1 = hash_table[$t0]
 	####Ajuste do valor Hash####
 
-	bnez $t1, middleAlloc 	# $t1 != 0 ? MiddleAlloc : FirstAlloc
+	bnez $t1, searchInsertNode 	# $t1 != 0 ? MiddleAlloc : FirstAlloc
 	j firstAlloc
 j insertLoop
 
@@ -187,10 +188,6 @@ firstAlloc:			# HEAD insertion in table
 	li $v0, 1		# Print int
 	lw $a0, 8($t1)		# Next inserted
 	syscall			# Print int
-	
-j insertLoop
-		
-middleAlloc:
 	
 j insertLoop
 # ------------------------------------------------------------------------#
@@ -426,8 +423,63 @@ viewAllNode:			# Prints current node
 	syscall			# Print int
 	
 	beqz $a0, viewAllNextIndex # If "next" = 0, go to the next index
-j viewAllLoopAux
+
+	move $t3, $a0
+j viewAllNode
 # ------------------------------------------------------------------------#
+
+#searchInsertLoop:			# Seeks the desired key value in the hash table
+#	bnez $t1, searchInsertNode	# $t1 != 0 ? searchNode : searchNotFound
+	
+searchInsertNotFound:
+	move $a0, $s0
+	move $a1, $t1
+	move $a2, $zero
+
+	jal allocNode
+
+	sw $v0, 8($t1)
+
+	lw $t1, 8($t1)
+
+	li $v0, 1		# Print int
+	lw $a0, 0($t1)		# Key inserted
+	syscall			# Print int
+	
+	li $v0, 4		# Print str
+	la $a0, comma_sep	# Separator
+	syscall			# Print str
+	
+	li $v0, 1		# Print int
+	lw $a0, 4($t1)		# Prev inserted
+	syscall			# Print int
+	
+	li $v0, 4		# Print str
+	la $a0, comma_sep	# Separator
+	syscall			# Print str
+	
+	li $v0, 1		# Print int
+	lw $a0, 8($t1)		# Next inserted
+	syscall			# Print int
+	
+j insertLoop
+
+searchInsertFound:
+	li $v0, 4		# Print str
+	la $a0, searchinsert_found	# Node found
+	syscall			# Print str
+j insertLoop
+
+searchInsertNode:
+	lw $t2, 0($t1)		# $t2 = current key
+	
+	beq $t2, $s0, searchInsertFound # If $t2 = $s0, key was found
+	
+	lw $t2, 8($t1)		# $t2 = next
+	beqz $t2, searchInsertNotFound # If $t2 = 0, key was not found (end of nodes)
+	
+	move $t1, $t2		# $t1 = $t2 (go to the next node)
+j searchInsertNode
 
 # EXIT ROUTINE #
 # ------------------------------------------------------------------------#
