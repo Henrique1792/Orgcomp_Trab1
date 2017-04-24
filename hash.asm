@@ -1,26 +1,33 @@
-#	Tabela Hash
+# -------------------------------------------------- #
+# SSC0112 - Organiza��o de Computadores Digitais - 1 #
+# ------------ Trabalho #1 - Tabela Hash ----------- #
+# Gustavo Santiago			     8937416 #
+# Henrique Freitas			     8937225 #
+# Henrique Loschiavo			     8936972 #
+# Luiz Dorici				     4165850 #
+# -------------------------------------------------- #
+# Implementacao: Lista duplamente encadeada
+#	Nodes: 
+#		Conteudo (key)
+#		Endereco anterior (NULL se cabeca) (prev)
+#		Proximo endereco (NULL se fim da pilha) (next)
 #
-# Implementação: Lista Duplamente encadeada
-#	Nós: 
-#			Conteúdo
-#			Endereço anterior (NULL se cabeça)
-#			Próximo endereço (NULL se fim da pilha)
-#
-#	Função Hash: Resto da divisão do número a ser inserido (chave)
+#	Funcao Hash: Resto da divisao do numero a ser inserido (key) por 16
 #
 # Funcionalidades:
-#		1 - Inserção
-#		2 - Remoção
+#		1 - Insercao
+#		2 - Remocao
 #		3 - Busca
-#		4 - Visualização Completa (c/ colisões)
+#		4 - Visualizacao Completa
 #		
-#		-1 - Fim da execução
+#		-1 - Fim da execucao
+# ---------------------------------------------- #
 
 .data
 
 .align 0
 # Menu Strings
-welcome_str:	.asciiz	"\n\nWelcome to Asm Hash Table :3"
+welcome_str:	.asciiz	"\n\nWelcome to Asm Hash Table!"
 select_str:	.asciiz "\nPlease, choose an option: "
 insert_str:	.asciiz "\n1 - Insert"
 remove_str:	.asciiz "\n2 - Remove"
@@ -31,11 +38,12 @@ invalidOp_str: 	.asciiz "\nInvalid Code!! \n\n\n"
 
 # Separators
 comma_sep: .asciiz ", "
+node_sep: .asciiz "\n-----------------------"
 
 # Insert Strings
 insert_home: .asciiz "\n\n>Type a key to be inserted (-1 returns to menu): "
 insert_success: .asciiz ">Key successfully inserted: "
-searchinsert_found: .asciiz "\nKey already exists, nothing was inserted"
+insert_dup: .asciiz ">Key already exists: "
 
 # Remove Strings
 remove_home: .asciiz "\n\n>Type a key to be removed (-1 returns to menu): "
@@ -62,45 +70,48 @@ hash_size: .word 16 		# Sizeof hash table
 hash_table: .space 64		# Hash table (16 words * 4 bytes)
 
 .text
-.globl hashMenu
+.globl main
 
 # MAIN MENU #
 # ------------------------------------------------------------------------#
+
+main:
+
 hashMenu:
-	li $v0, 4 		# Print str
-	la $a0, welcome_str 	# $a0 = &Welcome_str
+	li $v0, 4		# Print str
+	la $a0, welcome_str	# $a0 = &Welcome_str
 	syscall
 		
-	la $a0, select_str 	# $a0 = &Select_str
+	la $a0, select_str	# $a0 = &select_str
 	syscall
 		
-	la $a0, insert_str 	# $a0 = &insert_str
+	la $a0, insert_str	# $a0 = &insert_str
 	syscall
 		
-	la $a0, remove_str 	# $a0 = &remove_str
+	la $a0, remove_str	# $a0 = &remove_str
 	syscall
 		
-	la $a0, search_str 	# $a0 = &search_str
+	la $a0, search_str	# $a0 = &search_str
 	syscall
 		
-	la $a0, viewAll_str 	# $a0 = &viewAll_str
+	la $a0, viewAll_str	# $a0 = &viewAll_str
 	syscall
 
-	la $a0, exit_str 	# $a0 = &Exit_str
+	la $a0, exit_str	# $a0 = &Exit_str
 	syscall
 		
-	li $v0, 5 		# Read int
+	li $v0, 5		# Read int
 	syscall
 		
-	beq $v0, -1, exit
+	beq $v0, -1, Exit
 	beq $v0, 1, insertLoop
 	beq $v0, 2, removeLoop
 	beq $v0, 3, searchLoop
 	beq $v0, 4, viewAllLoop
 		
 		
-	li $v0, 4 		# Print str
-	la $a0, invalidOp_str 	# $a0 = &invalidOp_str
+	li $v0, 4		# Print str
+	la $a0, invalidOp_str	# $a0 = &invalidOp_str
 	syscall	
 j hashMenu
 # ------------------------------------------------------------------------#
@@ -127,30 +138,31 @@ allocNode:			# AllocNode: receives $a0 = key, $a1 = prev, $a2 = next, returns no
 insertLoop:
 	#####Leitura######
 	li $v0, 4 		# Print_str
-	la $a0, insert_home 	# $a0 = insert_home
+	la $a0, insert_home	# $a0 = insert_home
 	syscall
 		
 	li $v0, 5 		# Read_int
 	syscall
 	
-	beq $v0, -1, hashMenu 	# $v0 == -1 ? HashMenu : Insert
+	beq $v0, -1, hashMenu	# $v0 == -1 ? HashMenu : Insert
 	#####Leitura#####
 
 	####Ajuste do valor Hash#####
-	move $s0, $v0 		# $s0 = $v0 (valor lido salvo)
+	move $s0, $v0		# $s0 = $v0 (valor lido salvo)
 	div $v0, $v0, 16 	# $v0 = $v0 / 16
 		
-	mul $t0, $v0, 16  	# $t0 = $v0 * 16
+	mul $t0, $v0, 16	# $t0 = $v0 * 16
 	sub $v0, $s0, $t0	# $v0 = $s0 - $t0 (resto da divisão)
-	move $s1, $v0     	# $s1 = $v0 (posição hash salva)
+	move $s1, $v0		# $s1 = $v0 (posição hash salva)
 
-	la $t0, hash_table 	# $t0 = &hash_table
-	mul $t1, $s1, 4    	# ajuste multiplicando posição por 4 no endereço
-	add $t0, $t0, $t1	# &hash_table[$t0 += $t1]
-	lw $t1, 0($t0)     	# $t1 = hash_table[$t0]
+	la $t0, hash_table	# $t0 = &hash_table
+	mul $t1, $s1, 4		# ajuste multiplicando posição por 4 no endereço
+	add $t0, $t0, $t1	#&hash_table[$t0 += $t1]
+	lw $t1, 0($t0)		# $t1 = hash_table[$t0]
 	####Ajuste do valor Hash####
 
-	bnez $t1, searchInsertNode 	# $t1 != 0 ? MiddleAlloc : FirstAlloc
+	bnez $t1, middleAlloc	# $t1 != 0 ? MiddleAlloc : FirstAlloc
+	
 	j firstAlloc
 j insertLoop
 
@@ -163,12 +175,20 @@ firstAlloc:			# HEAD insertion in table
 	la $t1, 0($v0)		# Loads node address into $t1
 	sw $t1, 0($t0)		# Stores node address into table
 	
+	lw $t1, 0($t0)		# Load address from table
+	
+insertSuccess:
 	li $v0, 4		# Print str
 	la $a0, insert_success	# Insert success message
 	syscall			# Print str
+	j insertPrint
 	
-	lw $t1, 0($t0)		# Load address from table
-	
+insertDup:
+	li $v0, 4		# Print str
+	la $a0, insert_dup	# Insert success message
+	syscall			# Print str
+
+insertPrint:
 	li $v0, 1		# Print int
 	lw $a0, 0($t1)		# Key inserted
 	syscall			# Print int
@@ -190,6 +210,33 @@ firstAlloc:			# HEAD insertion in table
 	syscall			# Print int
 	
 j insertLoop
+		
+middleAlloc:
+	move $a0, $s0		# "key" argument
+	li $a2,	0		# "next" argument
+	
+middleNode:
+	lw $t2, 0($t1)		# $t2 = "key"
+	
+	beq $t2, $s0, insertDup # If $t2 = $s0, "key" already exists
+	
+	lw $t2, 8($t1)		# $t2 = "next"
+
+	beqz $t2, middleNodeInsert # If $t2 = 0, insert at end
+	
+	move $t1, $t2		# $t1 = $t2
+j middleNode
+	
+middleNodeInsert:
+	la $a1, ($t1)		# $a1 = $t1 = "prev" argument
+	jal allocNode		# Allocates node into $v0
+	
+	la $t2, 0($v0)		# Loads node address into $t2
+	sw $t2, 8($t1)		# Stores node address as current node's "next"
+	
+	lw $t2, 8($t1)		# Loads inserted node in $t2
+	move $t1, $t2		# Moves to inserted node for success print
+j insertSuccess
 # ------------------------------------------------------------------------#
 
 # REMOVE FUNCTIONS #
@@ -197,33 +244,33 @@ j insertLoop
 removeLoop:
 	#####Leitura######
 	li $v0, 4 		# Print_str
-	la $a0, remove_home 	# $a0 = remove_home
+	la $a0, remove_home	# $a0 = remove_home
 	syscall
 		
-	li $v0, 5 		# Read_int
+	li $v0, 5		# Read_int
 	syscall
 	
-	beq $v0, -1, hashMenu 	# $v0 == -1 ? HashMenu : Insert
+	beq $v0, -1, hashMenu	# $v0 == -1 ? HashMenu : Insert
 	#####Leitura#####
 	
 	####Ajuste do valor Hash#####
-	move $s0, $v0 		# $s0 = $v0 (valor lido salvo)
-	div $v0, $v0, 16 	# $v0 = $v0 / 16
+	move $s0, $v0		# $s0 = $v0 (valor lido salvo)
+	div $v0, $v0, 16	# $v0 = $v0 / 16
 		
-	mul $t0, $v0, 16  	# $t0 = $v0 * 16
+	mul $t0, $v0, 16	# $t0 = $v0 * 16
 	sub $v0, $s0, $t0	# $v0 = $s0 - $t0 (resto da divisão)
-	move $s1, $v0     	# $s1 = $v0 (posição hash salva)
+	move $s1, $v0		# $s1 = $v0 (posição hash salva)
 
-	la $t0, hash_table 	# $t0 = &hash_table
-	mul $t1, $s1, 4    	# ajuste multiplicando posição por 4 no endereço
+	la $t0, hash_table	# $t0 = &hash_table
+	mul $t1, $s1, 4		# ajuste multiplicando posição por 4 no endereço
 	add $t0, $t0, $t1	# &hash_table[$t0 += $t1]
-	lw $t1, 0($t0)     	# $t1 = hash_table[$t0]
+	lw $t1, 0($t0)		# $t1 = hash_table[$t0]
 	####Ajuste do valor Hash####
 	
-	bnez $t1, removeNode 	# $t1 != 0 ? removeNode : removeNotFound
+	bnez $t1, removeNode	# $t1 != 0 ? removeNode : removeNotFound
 
 removeNotFound:
-	la $a0, remove_notfound # Node not found
+	la $a0, remove_notfound	# Node not found
 	li $v0, 4		# Print str
 	syscall
 j removeLoop
@@ -236,6 +283,11 @@ removeNode:			# Runs through each node of a index for remotion, starting from he
 	lw $t2, 8($t1)		# Else, load "next" into $t2
 	sw $t2, 0($t0)		# And store it as the head value for the index
 	
+	beqz $t2, removeSuccess	# If $t2 is NULL, removing is complete
+	
+	sw $zero, 4($t2)	# Else, set "prev" as NULL
+	
+removeSuccess:
 	li $v0, 4		# Print str
 	la $a0, remove_success	# Remove success message
 	syscall			# Print str
@@ -265,77 +317,56 @@ removeNode:			# Runs through each node of a index for remotion, starting from he
 j removeLoop
 	
 removeNodeLoop:
-	lw $t2, 8($t1)		# Loads next node key into t2
-	beqz $t2, removeNotFound # If "next" = 0, node not found
-	move $t1, $t2		# $t1 = $t2 (go to the next node)
-	lw $t2, 0($t1)		# Loads key into t2
-	beq $t2, $s0, removeMiddleNode # if t2 = key remove non head node
+	beqz $t1, removeNotFound # If $t1 = 0, node not found (end of nodes)
+	
+	lw $t2, 0($t1)		# Loads "key" into $t2
+	beq $t2, $s0, removeNodeLink # If $t2 = $s0, set linking and remove node
+	
+	lw $t2, 8($t1)		# Loads "key" into $t2
+	move $t1, $t2		# $t1 = $t2
 j removeNodeLoop
 
-removeMiddleNode:
-	lw $t2, 4($t1) #t2 = t1 prev offset
-	lw $t3, 8($t1) #t3 = t1 next offset
-	move $t4, $t2  #t4 = t1 prev
-	sw $t3, 8($t4) #t4 next offset = t1 next offset
-	move $t4, $t3  #t4 = t1 next
-	sw $t2, 4($t4) #t4 next prev offset = t1 prev offset
+removeNodeLink:
+	lw $t3, 8($t1)		# $t3 = $t1 "next"
 	
-	li $v0, 4		# Print str
-	la $a0, remove_success	# Remove success message
-	syscall			# Print str
+	lw $t2, 4($t1)		# $t2 = $t1 "prev"
+	sw $t3, 8($t2)		# $t2 "next" = $t1 "next"
 	
-	li $v0, 1		# Print str
-	lw $a0, 0($t1)		# Key removed
-	syscall			# Print str
-	sw $zero, 0($t1)	# Set Key as NULL
+	beqz $t3, removeSuccess	# If $t1 "next" = 0, removing is complete
 	
-	li $v0, 4		# Print str
-	la $a0, comma_sep	# Separator
-	syscall			# Print str
+	lw $t3, 4($t1)		# Else, $t3 = $t1 "prev"
 	
-	li $v0, 1		# Print str
-	lw $a0, 4($t1)		# Prev removed
-	syscall			# Print str
-	sw $zero, 4($t1)	# Set Prev as NULL
-	
-	li $v0, 4		# Print str
-	la $a0, comma_sep	# Separator
-	syscall			# Print str
-	
-	li $v0, 1		# Print str
-	lw $a0, 8($t1)		# Next removed
-	syscall			# Print str
-	sw $zero, 8($t1)	# Set Next as NULL
-
-j removeLoop
+	lw $t2, 8($t1)		# $t2 = $t1 "next"
+	sw $t3, 4($t2)		# $t2 "prev" = $t1 "prev"
+j removeSuccess
 # ------------------------------------------------------------------------#
 
 # SEARCH FUNCTIONS
 # ------------------------------------------------------------------------#
 searchLoop:			# Seeks the desired key value in the hash table
 	#####Leitura######
-	li $v0, 4 		# Print_str
-	la $a0, search_home 	# $a0 = insert_home
+	li $v0, 4		# Print_str
+	la $a0, search_home	# $a0 = insert_home
 	syscall
 		
-	li $v0, 5 		# Read_int
+	li $v0, 5		# Read_int
 	syscall
 	
-	beq $v0, -1, hashMenu 	# $v0 == -1 ? HashMenu : Insert
+	beq $v0, -1, hashMenu	# $v0 == -1 ? HashMenu : Insert
 	#####Leitura#####
 	
 	####Ajuste do valor Hash#####
-	move $s0, $v0 		# $s0 = $v0 (valor lido salvo)
-	div $v0, $v0, 16 	# $v0 = $v0 / 16
+	move $s0, $v0		# $s0 = $v0 (valor lido salvo)
+	div $v0, $v0, 16	# $v0 = $v0 / 16
 		
-	mul $t0, $v0, 16  	# $t0 = $v0 * 16
+	mul $t0, $v0, 16	# $t0 = $v0 * 16
 	sub $v0, $s0, $t0	# $v0 = $s0 - $t0 (resto da divisão)
-	move $s1, $v0     	# $s1 = $v0 (posição hash salva)
+	move $s1, $v0		# $s1 = $v0 (posição hash salva)
 
-	la $t0, hash_table 	# $t0 = &hash_table
-	mul $t1, $s1, 4    	# ajuste multiplicando posição por 4 no endereço
+	la $t0, hash_table	# $t0 = &hash_table
+	mul $t1, $s1, 4		# ajuste multiplicando posição por 4 no endereço
 	add $t0, $t0, $t1	# &hash_table[$t0 += $t1]
-	lw $t1, 0($t0)     	# $t1 = hash_table[$t0]
+	lw $t1, 0($t0)		# $t1 = hash_table[$t0]
 	####Ajuste do valor Hash####
 	
 	bnez $t1, searchNode	# $t1 != 0 ? searchNode : searchNotFound
@@ -423,67 +454,18 @@ viewAllNode:			# Prints current node
 	syscall			# Print int
 	
 	beqz $a0, viewAllNextIndex # If "next" = 0, go to the next index
-
-	move $t3, $a0
+	
+	move $t3, $a0		# Else, move to the "next" node
+	
+	li $v0, 4		# Print str
+	la $a0, node_sep	# Separator
+	syscall			# Print str
 j viewAllNode
 # ------------------------------------------------------------------------#
 
-#searchInsertLoop:			# Seeks the desired key value in the hash table
-#	bnez $t1, searchInsertNode	# $t1 != 0 ? searchNode : searchNotFound
-	
-searchInsertNotFound:
-	move $a0, $s0
-	move $a1, $t1
-	move $a2, $zero
-
-	jal allocNode
-
-	sw $v0, 8($t1)
-
-	lw $t1, 8($t1)
-
-	li $v0, 1		# Print int
-	lw $a0, 0($t1)		# Key inserted
-	syscall			# Print int
-	
-	li $v0, 4		# Print str
-	la $a0, comma_sep	# Separator
-	syscall			# Print str
-	
-	li $v0, 1		# Print int
-	lw $a0, 4($t1)		# Prev inserted
-	syscall			# Print int
-	
-	li $v0, 4		# Print str
-	la $a0, comma_sep	# Separator
-	syscall			# Print str
-	
-	li $v0, 1		# Print int
-	lw $a0, 8($t1)		# Next inserted
-	syscall			# Print int
-	
-j insertLoop
-
-searchInsertFound:
-	li $v0, 4		# Print str
-	la $a0, searchinsert_found	# Node found
-	syscall			# Print str
-j insertLoop
-
-searchInsertNode:
-	lw $t2, 0($t1)		# $t2 = current key
-	
-	beq $t2, $s0, searchInsertFound # If $t2 = $s0, key was found
-	
-	lw $t2, 8($t1)		# $t2 = next
-	beqz $t2, searchInsertNotFound # If $t2 = 0, key was not found (end of nodes)
-	
-	move $t1, $t2		# $t1 = $t2 (go to the next node)
-j searchInsertNode
-
 # EXIT ROUTINE #
 # ------------------------------------------------------------------------#
-exit:
+Exit:
 	li $v0, 10		# Quit code
 	syscall			# Quit execution
 # ------------------------------------------------------------------------#
